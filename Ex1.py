@@ -74,36 +74,42 @@ def write_to_csv(list_of_calls, file_name):
 
 
 def offline_algorithm(json_building_file_name, csv_input_file_name, csv_output_file_name):
+    # read json and create buiding instance
     building = create_building_from_file(json_building_file_name)
+    # read csv input file and create list of Elevator calls
     list_of_calls = create_list_of_call_from_csv(csv_input_file_name)
 
+    # list to save the "weight" of each elevator.
+    # the weight is determined by the speed of the elevator,
+    # and will determine what fraction out of all the calls should be allocated to said elevator
     weights = [0] * building.number_of_elevators()
 
     total_speeds = 0
-    index = 0
-    fastest_elevator = building.elevators[index]
+    fastest_elevator = sorted(building.elevators, key=lambda elev: elev.speed)[::-1][0]
     for elevator in building.elevators:
-        if elevator.speed > fastest_elevator.speed:
-            fastest_elevator = elevator
-            index = elevator.elevator_id
         total_speeds += elevator.speed
     for elevator in building.elevators:
-        weights[elevator.elevator_id] = elevator.speed/total_speeds
+        weights[elevator.elevator_id] = elevator.speed / total_speeds
 
-    original_length = len(list_of_calls)
     for elevator in building.elevators:
-        number_of_calls = int(original_length * weights[elevator.elevator_id])
-        step = int(len(list_of_calls)/number_of_calls)
+
+        number_of_calls = int(len(list_of_calls) * weights[elevator.elevator_id]) # number of calls to be allocated
+        # to this specific elevator
+
+        step = int(len(list_of_calls) / number_of_calls)
         i = 0
+
         while i < len(list_of_calls):
             if list_of_calls[i].allocated_to_elevator == -1:
                 list_of_calls[i].allocated_to_elevator = elevator.elevator_id
                 i += step
             else:
                 i += 1
-    for i in list_of_calls:
-        if i.allocated_to_elevator == -1:
-            i.allocated_to_elevator = index
+
+    # allocating any skipped over calls, to the fastest elevator
+    for call in list_of_calls:
+        if call.allocated_to_elevator == -1:
+            call.allocated_to_elevator = fastest_elevator.elevator_id
 
     write_to_csv(list_of_calls, csv_output_file_name)
 
@@ -114,7 +120,6 @@ def main():
     offline_algorithm(file_names[files["json_building_file_name"]],
                       file_names[files["csv_input_file_name"]],
                       file_names[files["csv_output_file_name"]])
-    #offline_algorithm("B5.json", "Calls_d.csv", "outB5D.csv")
 
 
 if __name__ == '__main__':
